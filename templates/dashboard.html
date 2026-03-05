@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SecIntel — Team 6 Security Intelligence</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   SecIntel Dashboard — Dark Tactical Theme
+   ═══════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+    --bg-primary: #0a0e14;
+    --bg-secondary: #111820;
+    --bg-card: #151c27;
+    --bg-card-hover: #1a2332;
+    --border: #1e2a3a;
+    --border-active: #2d4a6f;
+    --text-primary: #c8d6e5;
+    --text-secondary: #6b7d93;
+    --text-muted: #3d4f63;
+    --accent-red: #ff4757;
+    --accent-red-dim: #ff475720;
+    --accent-orange: #ff9f43;
+    --accent-orange-dim: #ff9f4320;
+    --accent-yellow: #ffd32a;
+    --accent-yellow-dim: #ffd32a20;
+    --accent-green: #2ed573;
+    --accent-green-dim: #2ed57320;
+    --accent-blue: #3498ff;
+    --accent-blue-dim: #3498ff20;
+    --accent-cyan: #18dcff;
+    --accent-cyan-dim: #18dcff15;
+    --accent-purple: #a55eea;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-sans: 'IBM Plex Sans', -apple-system, sans-serif;
+    --radius: 6px;
+    --glow-red: 0 0 20px rgba(255,71,87,0.15);
+    --glow-blue: 0 0 20px rgba(52,152,255,0.1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.03) 2px,
+        rgba(0,0,0,0.03) 4px
+    );
+}
+
+/* ─── Header ─── */
+.header {
+    background: linear-gradient(180deg, var(--bg-secondary) 0%, rgba(17,24,32,0.95) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 22px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.logo {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    position: relative;
+    text-shadow: 0 0 20px rgba(24,220,255,0.3), 0 0 40px rgba(24,220,255,0.1);
+}
+
+.logo::before {
+    content: '▸';
+    margin-right: 10px;
+    color: var(--accent-red);
+    animation: blink 1.5s step-end infinite;
+    text-shadow: 0 0 10px rgba(255,71,87,0.4);
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+.logo-sub {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-secondary);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 5px;
+    border-left: 2px solid var(--accent-cyan);
+    padding-left: 10px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    box-shadow: 0 0 8px var(--accent-green);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.last-updated {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.refresh-btn:hover {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    box-shadow: var(--glow-blue);
+}
+
+.refresh-btn.loading {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+/* ─── Stats Bar ─── */
+.stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    margin: 0;
+}
+
+.stat-card {
+    background: var(--bg-secondary);
+    padding: 20px 24px;
+    text-align: center;
+    transition: background 0.2s;
+}
+
+.stat-card:hover {
+    background: var(--bg-card);
+}
+
+.stat-value {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-value.critical { color: var(--accent-red); }
+.stat-value.high { color: var(--accent-orange); }
+.stat-value.kev { color: var(--accent-yellow); }
+.stat-value.ghsa { color: var(--accent-purple); }
+.stat-value.intel { color: var(--accent-cyan); }
+.stat-value.total { color: var(--text-primary); }
+
+.stat-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 6px;
+}
+
+/* ─── Tab Navigation ─── */
+.tab-nav {
+    display: flex;
+    gap: 0;
+    padding: 0 32px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    padding: 14px 24px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.tab-btn:hover {
+    color: var(--text-secondary);
+    background: rgba(255,255,255,0.02);
+}
+
+.tab-btn.active {
+    color: var(--accent-cyan);
+    border-bottom-color: var(--accent-cyan);
+}
+
+.tab-btn .badge {
+    display: inline-block;
+    background: var(--accent-cyan-dim);
+    color: var(--accent-cyan);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+}
+
+/* ─── Main Content ─── */
+.main-content {
+    padding: 24px 32px;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ─── Tables ─── */
+.table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+thead th {
+    background: var(--bg-secondary);
+    padding: 12px 16px;
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+}
+
+tbody tr:hover {
+    background: var(--bg-card-hover);
+}
+
+tbody td {
+    padding: 12px 16px;
+    vertical-align: top;
+}
+
+/* ─── Severity Badges ─── */
+.severity {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.severity.critical {
+    background: var(--accent-red-dim);
+    color: var(--accent-red);
+    border: 1px solid rgba(255,71,87,0.3);
+}
+
+.severity.high {
+    background: var(--accent-orange-dim);
+    color: var(--accent-orange);
+    border: 1px solid rgba(255,159,67,0.3);
+}
+
+.severity.medium {
+    background: var(--accent-yellow-dim);
+    color: var(--accent-yellow);
+    border: 1px solid rgba(255,211,42,0.3);
+}
+
+.severity.low {
+    background: var(--accent-green-dim);
+    color: var(--accent-green);
+    border: 1px solid rgba(46,213,115,0.3);
+}
+
+.severity.unknown {
+    background: rgba(107,125,147,0.15);
+    color: var(--text-secondary);
+    border: 1px solid rgba(107,125,147,0.3);
+}
+
+/* ─── EPSS Bar ─── */
+.epss-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.epss-bar {
+    width: 60px;
+    height: 6px;
+    background: var(--bg-primary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.epss-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.epss-value {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    min-width: 45px;
+}
+
+/* ─── CVSS Score ─── */
+.cvss {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.cvss.critical { color: var(--accent-red); }
+.cvss.high { color: var(--accent-orange); }
+.cvss.medium { color: var(--accent-yellow); }
+.cvss.low { color: var(--accent-green); }
+
+/* ─── CVE ID Links ─── */
+.cve-link {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent-blue);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.cve-link:hover {
+    color: var(--accent-cyan);
+    text-decoration: underline;
+}
+
+/* ─── Description Cell ─── */
+.desc-cell {
+    max-width: 400px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* ─── Intel Cards ─── */
+.intel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 16px;
+}
+
+.intel-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: all 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    color: inherit;
+}
+
+.intel-card:hover {
+    border-color: var(--border-active);
+    background: var(--bg-card-hover);
+    box-shadow: var(--glow-blue);
+    transform: translateY(-1px);
+}
+
+.intel-card-source {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent-cyan);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+.intel-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.intel-card-summary {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.intel-card-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    display: flex;
+    gap: 16px;
+}
+
+.source-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.source-tag.portswigger { background: #ff640020; color: #ff6400; }
+.source-tag.hackerone { background: #8b5cf620; color: #8b5cf6; }
+.source-tag.projectdiscovery { background: #3498ff20; color: #3498ff; }
+.source-tag.cisa { background: #ff475720; color: #ff4757; }
+.source-tag.ncc { background: #2ed57320; color: #2ed573; }
+.source-tag.pz { background: #ffd32a20; color: #ffd32a; }
+.source-tag.thn { background: #18dcff20; color: #18dcff; }
+.source-tag.krebs { background: #e056fd20; color: #e056fd; }
+.source-tag.securelist { background: #00b89420; color: #00b894; }
+.source-tag.sentinel { background: #6c5ce720; color: #6c5ce7; }
+.source-tag.bleeping { background: #fd797920; color: #fd7979; }
+.source-tag.talos { background: #00cec920; color: #00cec9; }
+.source-tag.eset { background: #55efc420; color: #55efc4; }
+.source-tag.rapid7 { background: #e1702520; color: #e17025; }
+.source-tag.snyk { background: #c471ed20; color: #c471ed; }
+.source-tag.tenable { background: #0984e320; color: #0984e3; }
+.source-tag.assetnote { background: #fdcb6e20; color: #fdcb6e; }
+.source-tag.trailofbits { background: #d6336c20; color: #d6336c; }
+.source-tag.google { background: #4285f420; color: #4285f4; }
+.source-tag.msrc { background: #00a4ef20; color: #00a4ef; }
+.source-tag.cloudflare { background: #f4811520; color: #f48115; }
+.source-tag.embracethered { background: #e8439320; color: #e84393; }
+.source-tag.mitre_atlas { background: #d6303120; color: #d63031; }
+.source-tag.hiddenlayer { background: #00b4d820; color: #00b4d8; }
+.source-tag.protectai { background: #06d6a020; color: #06d6a0; }
+.source-tag.invariant { background: #f7258520; color: #f72585; }
+.source-tag.lilian { background: #ff006e20; color: #ff006e; }
+.source-tag.openai { background: #10a37f20; color: #10a37f; }
+.source-tag.anthropic { background: #d4a27420; color: #d4a274; }
+.source-tag.google_ai { background: #4285f420; color: #4285f4; }
+.source-tag.meta_ai { background: #0668e120; color: #0668e1; }
+.source-tag.huggingface { background: #ffbd4520; color: #ffbd45; }
+.source-tag.nvidia { background: #76b90020; color: #76b900; }
+.source-tag.simonwillison { background: #118ab220; color: #118ab2; }
+.source-tag.latentspace { background: #7b2d8e20; color: #7b2d8e; }
+.source-tag.register { background: #ff634720; color: #ff6347; }
+.source-tag.mlmastery { background: #20bf5520; color: #20bf55; }
+.source-tag.thesequence { background: #e6739720; color: #e67397; }
+
+/* ─── KEV table extras ─── */
+.ransomware-yes {
+    color: var(--accent-red);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.ransomware-no {
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+}
+
+/* ─── Filter Bar ─── */
+.filter-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filter-input {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 8px 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    border-radius: var(--radius);
+    outline: none;
+    transition: border-color 0.2s;
+    min-width: 250px;
+}
+
+.filter-input:focus {
+    border-color: var(--accent-cyan);
+}
+
+.filter-input::placeholder {
+    color: var(--text-muted);
+}
+
+.filter-select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 8px 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    border-radius: var(--radius);
+    outline: none;
+    cursor: pointer;
+}
+
+.filter-select:focus {
+    border-color: var(--accent-cyan);
+}
+
+/* ─── Loading ─── */
+.loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,14,20,0.85);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.loading-overlay.active {
+    display: flex;
+}
+
+.loader {
+    width: 40px;
+    height: 40px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent-cyan);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+/* ─── Empty State ─── */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.empty-state .icon { font-size: 32px; margin-bottom: 12px; }
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+    .header { padding: 12px 16px; }
+    .main-content { padding: 16px; }
+    .tab-nav { padding: 0 16px; overflow-x: auto; }
+    .intel-grid { grid-template-columns: 1fr; }
+    .stats-bar { grid-template-columns: repeat(3, 1fr); }
+    .filter-input { min-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loader"></div>
+    <div class="loading-text">Aggregating intelligence feeds...</div>
+</div>
+
+<!-- Header -->
+<header class="header">
+    <div class="header-left">
+        <div>
+            <div class="logo">SecIntel</div>
+            <div class="logo-sub">Team 6 R&amp;D — Security Intelligence Dashboard</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="status-dot" id="statusDot" title="Feed status"></div>
+        <span class="last-updated" id="lastUpdated">—</span>
+        <button class="refresh-btn" id="refreshBtn" onclick="loadDashboard()">↻ Refresh</button>
+    </div>
+</header>
+
+<!-- Stats Bar -->
+<div class="stats-bar" id="statsBar">
+    <div class="stat-card">
+        <div class="stat-value total" id="statTotal">—</div>
+        <div class="stat-label">CVEs (7 days)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value critical" id="statCritical">—</div>
+        <div class="stat-label">Critical</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value high" id="statHigh">—</div>
+        <div class="stat-label">High</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value kev" id="statKev">—</div>
+        <div class="stat-label">CISA KEV (30d)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value ghsa" id="statGhsa">—</div>
+        <div class="stat-label">GitHub Advisory</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value intel" id="statIntel">—</div>
+        <div class="stat-label">Intel Items</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="statAi" style="color: var(--accent-purple);">—</div>
+        <div class="stat-label">AI Intel</div>
+    </div>
+</div>
+
+<!-- Tab Navigation -->
+<nav class="tab-nav">
+    <button class="tab-btn active" data-tab="cves">CVE Intel <span class="badge" id="cveTabBadge">0</span></button>
+    <button class="tab-btn" data-tab="kev">CISA KEV <span class="badge" id="kevTabBadge">0</span></button>
+    <button class="tab-btn" data-tab="ghsa">GitHub Advisory <span class="badge" id="ghsaTabBadge">0</span></button>
+    <button class="tab-btn" data-tab="intel">Threat Intel & Research <span class="badge" id="intelTabBadge">0</span></button>
+    <button class="tab-btn" data-tab="ai">AI Intel <span class="badge" id="aiTabBadge">0</span></button>
+</nav>
+
+<!-- Main Content -->
+<main class="main-content">
+
+    <!-- CVE Panel -->
+    <div class="panel active" id="panel-cves">
+        <div class="filter-bar">
+            <input type="text" class="filter-input" id="cveSearch" placeholder="Search CVE ID, description, CWE...">
+            <select class="filter-select" id="cveSeverityFilter">
+                <option value="">All Severities</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+            </select>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>CVE ID</th>
+                        <th>Severity</th>
+                        <th>CVSS</th>
+                        <th>EPSS</th>
+                        <th>CWE</th>
+                        <th>Description</th>
+                        <th>Published</th>
+                    </tr>
+                </thead>
+                <tbody id="cveTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- KEV Panel -->
+    <div class="panel" id="panel-kev">
+        <div class="filter-bar">
+            <input type="text" class="filter-input" id="kevSearch" placeholder="Search KEV entries...">
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>CVE ID</th>
+                        <th>Vendor</th>
+                        <th>Product</th>
+                        <th>Vulnerability</th>
+                        <th>Ransomware</th>
+                        <th>Date Added</th>
+                        <th>Due Date</th>
+                    </tr>
+                </thead>
+                <tbody id="kevTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- GHSA Panel -->
+    <div class="panel" id="panel-ghsa">
+        <div class="filter-bar">
+            <input type="text" class="filter-input" id="ghsaSearch" placeholder="Search GitHub advisories...">
+            <select class="filter-select" id="ghsaSeverityFilter">
+                <option value="">All Severities</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+            </select>
+        </div>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>GHSA</th>
+                        <th>CVE</th>
+                        <th>Severity</th>
+                        <th>Ecosystems</th>
+                        <th>Summary</th>
+                        <th>Published</th>
+                    </tr>
+                </thead>
+                <tbody id="ghsaTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Intel Panel -->
+    <div class="panel" id="panel-intel">
+        <div class="filter-bar">
+            <input type="text" class="filter-input" id="intelSearch" placeholder="Search intel feeds...">
+            <select class="filter-select" id="intelCategoryFilter">
+                <option value="">All Categories</option>
+                <option value="webapp_research">Web App Research</option>
+                <option value="threat_intel">Threat Intel</option>
+                <option value="vuln_research">Vuln Research</option>
+            </select>
+            <select class="filter-select" id="intelSourceFilter">
+                <option value="">All Sources</option>
+            </select>
+            <span class="filter-count" id="intelCount" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
+        </div>
+        <div class="intel-grid" id="intelGrid"></div>
+    </div>
+
+    <!-- AI Intel Panel -->
+    <div class="panel" id="panel-ai">
+        <div class="filter-bar">
+            <input type="text" class="filter-input" id="aiSearch" placeholder="Search AI intel...">
+            <select class="filter-select" id="aiCategoryFilter">
+                <option value="">All AI Intel</option>
+                <option value="ai_security">AI Security</option>
+                <option value="ai_news">AI News & Updates</option>
+            </select>
+            <select class="filter-select" id="aiSourceFilter">
+                <option value="">All Sources</option>
+            </select>
+            <span class="filter-count" id="aiCount" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-left:auto;"></span>
+        </div>
+        <div class="intel-grid" id="aiGrid"></div>
+    </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// SecIntel Dashboard — Client Logic
+// ═══════════════════════════════════════════════════════════════
+
+let dashboardData = null;
+
+// ─── Tab Switching ───
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`panel-${btn.dataset.tab}`).classList.add('active');
+    });
+});
+
+// ─── Utility ───
+function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch { return dateStr; }
+}
+
+function formatDateShort(dateStr) {
+    if (!dateStr) return '—';
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch { return dateStr; }
+}
+
+function severityClass(sev) {
+    if (!sev) return 'unknown';
+    switch (sev.toUpperCase()) {
+        case 'CRITICAL': return 'critical';
+        case 'HIGH': return 'high';
+        case 'MEDIUM': return 'medium';
+        case 'LOW': return 'low';
+        default: return 'unknown';
+    }
+}
+
+function epssColor(score) {
+    if (score >= 0.5) return 'var(--accent-red)';
+    if (score >= 0.2) return 'var(--accent-orange)';
+    if (score >= 0.05) return 'var(--accent-yellow)';
+    return 'var(--accent-green)';
+}
+
+function sourceTagClass(source) {
+    const s = source.toLowerCase();
+    if (s.includes('portswigger')) return 'portswigger';
+    if (s.includes('hackerone')) return 'hackerone';
+    if (s.includes('projectdiscovery')) return 'projectdiscovery';
+    if (s.includes('cisa')) return 'cisa';
+    if (s.includes('ncc')) return 'ncc';
+    if (s.includes('project_zero') || s === 'zero') return 'pz';
+    if (s.includes('hackernews') || s.includes('thehacker')) return 'thn';
+    if (s.includes('krebs')) return 'krebs';
+    if (s.includes('securelist')) return 'securelist';
+    if (s.includes('sentinel')) return 'sentinel';
+    if (s.includes('bleeping')) return 'bleeping';
+    if (s.includes('talos')) return 'talos';
+    if (s.includes('eset')) return 'eset';
+    if (s.includes('rapid7')) return 'rapid7';
+    if (s.includes('snyk')) return 'snyk';
+    if (s.includes('tenable')) return 'tenable';
+    if (s.includes('assetnote')) return 'assetnote';
+    if (s.includes('trailofbits') || s === 'trail') return 'trailofbits';
+    if (s.includes('google_security')) return 'google';
+    if (s.includes('msrc') || s.includes('microsoft')) return 'msrc';
+    if (s.includes('cloudflare')) return 'cloudflare';
+    if (s.includes('embrace')) return 'embracethered';
+    if (s.includes('mitre') || s.includes('atlas')) return 'mitre_atlas';
+    if (s.includes('hiddenlayer')) return 'hiddenlayer';
+    if (s.includes('protectai')) return 'protectai';
+    if (s.includes('invariant')) return 'invariant';
+    if (s.includes('lilian')) return 'lilian';
+    if (s.includes('openai')) return 'openai';
+    if (s.includes('anthropic')) return 'anthropic';
+    if (s.includes('google_ai')) return 'google_ai';
+    if (s.includes('meta_ai')) return 'meta_ai';
+    if (s.includes('hugging')) return 'huggingface';
+    if (s.includes('nvidia')) return 'nvidia';
+    if (s.includes('simon')) return 'simonwillison';
+    if (s.includes('latent')) return 'latentspace';
+    if (s.includes('register')) return 'register';
+    if (s.includes('ml_mastery') || s.includes('mastery')) return 'mlmastery';
+    if (s.includes('sequence')) return 'thesequence';
+    return '';
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+}
+
+// ─── Render CVEs ───
+function renderCves(cves, searchTerm = '', severityFilter = '') {
+    const tbody = document.getElementById('cveTableBody');
+    let filtered = cves;
+
+    if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        filtered = filtered.filter(c =>
+            (c.cve_id || '').toLowerCase().includes(q) ||
+            (c.description || '').toLowerCase().includes(q) ||
+            (c.cwe || '').toLowerCase().includes(q)
+        );
+    }
+
+    if (severityFilter) {
+        filtered = filtered.filter(c => (c.severity || '').toUpperCase() === severityFilter);
+    }
+
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">◇</div>No CVEs match filters</div></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(c => {
+        const epss = c.epss_score != null ? c.epss_score : null;
+        const epssHtml = epss != null
+            ? `<div class="epss-bar-wrap">
+                 <div class="epss-bar"><div class="epss-bar-fill" style="width:${Math.min(epss * 100, 100)}%;background:${epssColor(epss)}"></div></div>
+                 <span class="epss-value">${(epss * 100).toFixed(1)}%</span>
+               </div>`
+            : '<span style="color:var(--text-muted)">—</span>';
+
+        const cvssVal = c.cvss_score != null ? c.cvss_score : null;
+        const cvssHtml = cvssVal != null
+            ? `<span class="cvss ${severityClass(c.severity)}">${cvssVal.toFixed(1)}</span>`
+            : '—';
+
+        return `<tr>
+            <td><a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${escapeHtml(c.cve_id)}" target="_blank" rel="noopener">${escapeHtml(c.cve_id)}</a></td>
+            <td><span class="severity ${severityClass(c.severity)}">${escapeHtml(c.severity)}</span></td>
+            <td>${cvssHtml}</td>
+            <td>${epssHtml}</td>
+            <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary)">${escapeHtml(c.cwe) || '—'}</span></td>
+            <td><div class="desc-cell">${escapeHtml(c.description)}</div></td>
+            <td style="white-space:nowrap;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${formatDate(c.published)}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ─── Render KEV ───
+function renderKev(kevs, searchTerm = '') {
+    const tbody = document.getElementById('kevTableBody');
+    let filtered = kevs;
+
+    if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        filtered = filtered.filter(k =>
+            (k.cve_id || '').toLowerCase().includes(q) ||
+            (k.vendor || '').toLowerCase().includes(q) ||
+            (k.product || '').toLowerCase().includes(q) ||
+            (k.name || '').toLowerCase().includes(q)
+        );
+    }
+
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">◇</div>No KEV entries match filters</div></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(k => {
+        const rw = (k.known_ransomware || '').toLowerCase() === 'known'
+            ? '<span class="ransomware-yes">⚠ KNOWN</span>'
+            : '<span class="ransomware-no">Unknown</span>';
+
+        return `<tr>
+            <td><a class="cve-link" href="https://nvd.nist.gov/vuln/detail/${escapeHtml(k.cve_id)}" target="_blank" rel="noopener">${escapeHtml(k.cve_id)}</a></td>
+            <td style="font-size:12px">${escapeHtml(k.vendor)}</td>
+            <td style="font-size:12px">${escapeHtml(k.product)}</td>
+            <td><div class="desc-cell">${escapeHtml(k.name)}</div></td>
+            <td>${rw}</td>
+            <td style="white-space:nowrap;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${formatDate(k.date_added)}</td>
+            <td style="white-space:nowrap;font-family:var(--font-mono);font-size:11px;color:var(--accent-orange)">${formatDate(k.due_date)}</td>
+        </tr>`;
+    }).join('');
+}
+
+// ─── Render GHSA ───
+function renderGhsa(advisories, searchTerm = '', severityFilter = '') {
+    const tbody = document.getElementById('ghsaTableBody');
+    let filtered = advisories;
+
+    if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        filtered = filtered.filter(a =>
+            (a.ghsa_id || '').toLowerCase().includes(q) ||
+            (a.cve_id || '').toLowerCase().includes(q) ||
+            (a.summary || '').toLowerCase().includes(q)
+        );
+    }
+
+    if (severityFilter) {
+        filtered = filtered.filter(a => (a.severity || '').toUpperCase() === severityFilter);
+    }
+
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">◇</div>No advisories match filters</div></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(a => `<tr>
+        <td><a class="cve-link" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.ghsa_id)}</a></td>
+        <td><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-secondary)">${escapeHtml(a.cve_id) || '—'}</span></td>
+        <td><span class="severity ${severityClass(a.severity)}">${escapeHtml(a.severity)}</span></td>
+        <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${(a.ecosystems || []).filter(Boolean).join(', ') || '—'}</td>
+        <td><div class="desc-cell">${escapeHtml(a.summary)}</div></td>
+        <td style="white-space:nowrap;font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${formatDate(a.published)}</td>
+    </tr>`).join('');
+}
+
+// ─── Render Intel ───
+function renderIntel(items, searchTerm = '', categoryFilter = '', sourceFilter = '') {
+    const grid = document.getElementById('intelGrid');
+    const countEl = document.getElementById('intelCount');
+    let filtered = items;
+
+    if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        filtered = filtered.filter(i =>
+            (i.title || '').toLowerCase().includes(q) ||
+            (i.summary || '').toLowerCase().includes(q) ||
+            (i.source || '').toLowerCase().includes(q)
+        );
+    }
+
+    if (categoryFilter) {
+        filtered = filtered.filter(i => i.category === categoryFilter);
+    }
+
+    if (sourceFilter) {
+        filtered = filtered.filter(i => i.source === sourceFilter);
+    }
+
+    countEl.textContent = `${filtered.length} / ${items.length} items`;
+
+    if (!filtered.length) {
+        grid.innerHTML = '<div class="empty-state"><div class="icon">◇</div>No intel items match filters</div>';
+        return;
+    }
+
+    grid.innerHTML = filtered.map(i => `
+        <a class="intel-card" href="${escapeHtml(i.url)}" target="_blank" rel="noopener">
+            <div class="intel-card-source">
+                <span class="source-tag ${sourceTagClass(i.source)}">${escapeHtml(i.source)}</span>
+            </div>
+            <div class="intel-card-title">${escapeHtml(i.title)}</div>
+            <div class="intel-card-summary">${escapeHtml(i.summary)}</div>
+            <div class="intel-card-meta">
+                <span>${formatDateShort(i.published)}</span>
+                <span>${escapeHtml(i.category || '').replace('_', ' ')}</span>
+            </div>
+        </a>
+    `).join('');
+}
+
+// ─── Populate Source Filter Dropdown ───
+function populateSourceFilter(selectId, items) {
+    const select = document.getElementById(selectId);
+    const sources = [...new Set(items.map(i => i.source).filter(Boolean))].sort();
+    select.innerHTML = '<option value="">All Sources (' + sources.length + ')</option>' +
+        sources.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+}
+
+// ─── Render AI Intel (reuses card layout) ───
+function renderAi(items, searchTerm = '', categoryFilter = '', sourceFilter = '') {
+    const grid = document.getElementById('aiGrid');
+    const countEl = document.getElementById('aiCount');
+    let filtered = items;
+
+    if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        filtered = filtered.filter(i =>
+            (i.title || '').toLowerCase().includes(q) ||
+            (i.summary || '').toLowerCase().includes(q) ||
+            (i.source || '').toLowerCase().includes(q)
+        );
+    }
+
+    if (categoryFilter) {
+        filtered = filtered.filter(i => i.category === categoryFilter);
+    }
+
+    if (sourceFilter) {
+        filtered = filtered.filter(i => i.source === sourceFilter);
+    }
+
+    countEl.textContent = `${filtered.length} / ${items.length} items`;
+
+    if (!filtered.length) {
+        grid.innerHTML = '<div class="empty-state"><div class="icon">◇</div>No AI intel items match filters</div>';
+        return;
+    }
+
+    grid.innerHTML = filtered.map(i => `
+        <a class="intel-card" href="${escapeHtml(i.url)}" target="_blank" rel="noopener">
+            <div class="intel-card-source">
+                <span class="source-tag ${sourceTagClass(i.source)}">${escapeHtml(i.source)}</span>
+                <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);margin-left:8px;text-transform:uppercase;letter-spacing:1px">${i.category === 'ai_security' ? '🛡 security' : '🤖 news'}</span>
+            </div>
+            <div class="intel-card-title">${escapeHtml(i.title)}</div>
+            <div class="intel-card-summary">${escapeHtml(i.summary)}</div>
+            <div class="intel-card-meta">
+                <span>${formatDateShort(i.published)}</span>
+                <span>${escapeHtml(i.category || '').replaceAll('_', ' ')}</span>
+            </div>
+        </a>
+    `).join('');
+}
+
+// ─── Load Dashboard ───
+async function loadDashboard() {
+    const overlay = document.getElementById('loadingOverlay');
+    const refreshBtn = document.getElementById('refreshBtn');
+
+    overlay.classList.add('active');
+    refreshBtn.classList.add('loading');
+
+    try {
+        const resp = await fetch('/api/dashboard');
+        dashboardData = await resp.json();
+
+        // Split intel into security vs AI streams
+        const allIntel = dashboardData.intel || [];
+        const aiCategories = ['ai_security', 'ai_news'];
+        dashboardData.secIntel = allIntel.filter(i => !aiCategories.includes(i.category));
+        dashboardData.aiIntel = allIntel.filter(i => aiCategories.includes(i.category));
+
+        // Update stats
+        const s = dashboardData.stats || {};
+        document.getElementById('statTotal').textContent = s.total_cves || 0;
+        document.getElementById('statCritical').textContent = s.critical_cves || 0;
+        document.getElementById('statHigh').textContent = s.high_cves || 0;
+        document.getElementById('statKev').textContent = s.kev_count || 0;
+        document.getElementById('statGhsa').textContent = s.ghsa_count || 0;
+        document.getElementById('statIntel').textContent = dashboardData.secIntel.length || 0;
+        document.getElementById('statAi').textContent = dashboardData.aiIntel.length || 0;
+
+        // Update badges
+        document.getElementById('cveTabBadge').textContent = s.total_cves || 0;
+        document.getElementById('kevTabBadge').textContent = s.kev_count || 0;
+        document.getElementById('ghsaTabBadge').textContent = s.ghsa_count || 0;
+        document.getElementById('intelTabBadge').textContent = dashboardData.secIntel.length || 0;
+        document.getElementById('aiTabBadge').textContent = dashboardData.aiIntel.length || 0;
+
+        // Render panels
+        renderCves(dashboardData.cves || []);
+        renderKev(dashboardData.kev || []);
+        renderGhsa(dashboardData.ghsa || []);
+        populateSourceFilter('intelSourceFilter', dashboardData.secIntel);
+        renderIntel(dashboardData.secIntel);
+        populateSourceFilter('aiSourceFilter', dashboardData.aiIntel);
+        renderAi(dashboardData.aiIntel);
+
+        // Update timestamp
+        const ts = dashboardData.last_updated;
+        document.getElementById('lastUpdated').textContent = ts
+            ? `Updated ${new Date(ts).toLocaleTimeString()}`
+            : '—';
+
+        document.getElementById('statusDot').style.background = 'var(--accent-green)';
+    } catch (err) {
+        console.error('Dashboard load failed:', err);
+        document.getElementById('statusDot').style.background = 'var(--accent-red)';
+        document.getElementById('lastUpdated').textContent = 'Feed error';
+    } finally {
+        overlay.classList.remove('active');
+        refreshBtn.classList.remove('loading');
+    }
+}
+
+// ─── Filter Event Listeners ───
+document.getElementById('cveSearch').addEventListener('input', () => {
+    if (dashboardData) renderCves(dashboardData.cves, document.getElementById('cveSearch').value, document.getElementById('cveSeverityFilter').value);
+});
+document.getElementById('cveSeverityFilter').addEventListener('change', () => {
+    if (dashboardData) renderCves(dashboardData.cves, document.getElementById('cveSearch').value, document.getElementById('cveSeverityFilter').value);
+});
+document.getElementById('kevSearch').addEventListener('input', () => {
+    if (dashboardData) renderKev(dashboardData.kev, document.getElementById('kevSearch').value);
+});
+document.getElementById('ghsaSearch').addEventListener('input', () => {
+    if (dashboardData) renderGhsa(dashboardData.ghsa, document.getElementById('ghsaSearch').value, document.getElementById('ghsaSeverityFilter').value);
+});
+document.getElementById('ghsaSeverityFilter').addEventListener('change', () => {
+    if (dashboardData) renderGhsa(dashboardData.ghsa, document.getElementById('ghsaSearch').value, document.getElementById('ghsaSeverityFilter').value);
+});
+document.getElementById('intelSearch').addEventListener('input', () => {
+    if (dashboardData) renderIntel(dashboardData.secIntel, document.getElementById('intelSearch').value, document.getElementById('intelCategoryFilter').value, document.getElementById('intelSourceFilter').value);
+});
+document.getElementById('intelCategoryFilter').addEventListener('change', () => {
+    if (dashboardData) renderIntel(dashboardData.secIntel, document.getElementById('intelSearch').value, document.getElementById('intelCategoryFilter').value, document.getElementById('intelSourceFilter').value);
+});
+document.getElementById('intelSourceFilter').addEventListener('change', () => {
+    if (dashboardData) renderIntel(dashboardData.secIntel, document.getElementById('intelSearch').value, document.getElementById('intelCategoryFilter').value, document.getElementById('intelSourceFilter').value);
+});
+document.getElementById('aiSearch').addEventListener('input', () => {
+    if (dashboardData) renderAi(dashboardData.aiIntel, document.getElementById('aiSearch').value, document.getElementById('aiCategoryFilter').value, document.getElementById('aiSourceFilter').value);
+});
+document.getElementById('aiCategoryFilter').addEventListener('change', () => {
+    if (dashboardData) renderAi(dashboardData.aiIntel, document.getElementById('aiSearch').value, document.getElementById('aiCategoryFilter').value, document.getElementById('aiSourceFilter').value);
+});
+document.getElementById('aiSourceFilter').addEventListener('change', () => {
+    if (dashboardData) renderAi(dashboardData.aiIntel, document.getElementById('aiSearch').value, document.getElementById('aiCategoryFilter').value, document.getElementById('aiSourceFilter').value);
+});
+
+// ─── Keyboard shortcut ───
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'r' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        loadDashboard();
+    }
+});
+
+// ─── Init ───
+loadDashboard();
+</script>
+
+</body>
+</html>
