@@ -1,6 +1,6 @@
 # SecIntel — Security Intelligence Aggregator
 
-**Team 6 Research | Application Security Dashboard**
+**Research | Application Security Dashboard**
 
 A single-command security intelligence dashboard that aggregates CVE data, exploit probability scores, threat intel, and web application security research into one tactical interface.
 
