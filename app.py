@@ -100,8 +100,8 @@ def cache_set(key: str, data):
 # Feed Fetchers
 # ---------------------------------------------------------------------------
 
-def fetch_nvd_cves(days_back: int = 7, results_per_page: int = 50):
-    """Fetch recent CVEs from NVD API 2.0"""
+def fetch_nvd_cves(days_back: int = 7, results_per_page: int = 200, max_results: int = 2000):
+    """Fetch recent CVEs from NVD API 2.0 with pagination"""
     cache_key = f"nvd_cves_{days_back}"
     cached = cache_get(cache_key)
     if cached:
@@ -110,22 +110,43 @@ def fetch_nvd_cves(days_back: int = 7, results_per_page: int = 50):
     end = datetime.now(timezone.utc)
     start = end - timedelta(days=days_back)
     url = "https://services.nvd.nist.gov/rest/json/cves/2.0"
-    params = {
-        "pubStartDate": start.strftime("%Y-%m-%dT00:00:00.000"),
-        "pubEndDate": end.strftime("%Y-%m-%dT23:59:59.999"),
-        "resultsPerPage": results_per_page,
-    }
 
-    try:
-        resp = requests.get(url, params=params, timeout=FEED_FETCH_TIMEOUT)
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception as e:
-        LOG.error(f"NVD fetch failed: {e}")
-        return []
+    all_vulns = []
+    start_index = 0
+
+    while start_index < max_results:
+        params = {
+            "pubStartDate": start.strftime("%Y-%m-%dT00:00:00.000"),
+            "pubEndDate": end.strftime("%Y-%m-%dT23:59:59.999"),
+            "resultsPerPage": min(results_per_page, 2000),
+            "startIndex": start_index,
+        }
+
+        try:
+            resp = requests.get(url, params=params, timeout=FEED_FETCH_TIMEOUT, proxies=PROXIES, verify=False)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            LOG.error(f"NVD fetch failed (startIndex={start_index}): {e}")
+            break
+
+        vulns = data.get("vulnerabilities", [])
+        total_results = data.get("totalResults", 0)
+        all_vulns.extend(vulns)
+
+        LOG.info(f"NVD page fetched: {len(vulns)} items (startIndex={start_index}, total={total_results})")
+
+        # Stop if we got everything or this page was empty
+        if not vulns or start_index + len(vulns) >= total_results:
+            break
+
+        start_index += len(vulns)
+
+        # NVD rate limit: max 5 requests per 30 sec without API key
+        time.sleep(6)
 
     results = []
-    for vuln in data.get("vulnerabilities", []):
+    for vuln in all_vulns:
         cve = vuln.get("cve", {})
         cve_id = cve.get("id", "")
 
@@ -171,6 +192,8 @@ def fetch_nvd_cves(days_back: int = 7, results_per_page: int = 50):
             "source": "NVD",
         }
         results.append(item)
+
+    LOG.info(f"NVD total: {len(results)} CVEs fetched for last {days_back} days")
 
     # Sort by CVSS descending
     results.sort(key=lambda x: x.get("cvss_score") or 0, reverse=True)
