@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SecIntel —  Security Intelligence</title>
+<title>SecIntel — Team 6 Security Intelligence</title>
 <style>
 /* ═══════════════════════════════════════════════════════════════
    SecIntel Dashboard — Dark Tactical Theme
@@ -1132,65 +1132,91 @@ function renderAi(items, searchTerm = '', categoryFilter = '', sourceFilter = ''
     `).join('');
 }
 
-// ─── Load Dashboard ───
+// ─── Load Dashboard (async per-tab) ───
 async function loadDashboard() {
-    const overlay = document.getElementById('loadingOverlay');
     const refreshBtn = document.getElementById('refreshBtn');
-
-    overlay.classList.add('active');
     refreshBtn.classList.add('loading');
+    document.getElementById('statusDot').style.background = 'var(--accent-yellow)';
+    document.getElementById('lastUpdated').textContent = 'Loading...';
 
-    try {
-        const resp = await fetch('/api/dashboard');
-        dashboardData = await resp.json();
+    if (!dashboardData) dashboardData = {};
 
-        // Split intel into security vs AI streams
-        const allIntel = dashboardData.intel || [];
+    // Helper: set tab loading state
+    function setTabLoading(badgeId, text) {
+        const badge = document.getElementById(badgeId);
+        if (badge) badge.textContent = text || '...';
+    }
+
+    setTabLoading('cveTabBadge', '...');
+    setTabLoading('kevTabBadge', '...');
+    setTabLoading('ghsaTabBadge', '...');
+    setTabLoading('intelTabBadge', '...');
+    setTabLoading('aiTabBadge', '...');
+
+    // Fetch all tabs in parallel — each renders as soon as it arrives
+    const cvePromise = fetch('/api/cves').then(r => r.json()).then(data => {
+        dashboardData.cves = data.cves || [];
+        const total = dashboardData.cves.length;
+        const critical = dashboardData.cves.filter(c => c.severity === 'CRITICAL').length;
+        const high = dashboardData.cves.filter(c => c.severity === 'HIGH').length;
+        document.getElementById('statTotal').textContent = total;
+        document.getElementById('statCritical').textContent = critical;
+        document.getElementById('statHigh').textContent = high;
+        document.getElementById('cveTabBadge').textContent = total;
+        renderCves(dashboardData.cves);
+    }).catch(e => {
+        console.error('CVE load failed:', e);
+        document.getElementById('cveTabBadge').textContent = '!';
+    });
+
+    const kevPromise = fetch('/api/kev').then(r => r.json()).then(data => {
+        dashboardData.kev = data.kev || [];
+        document.getElementById('statKev').textContent = dashboardData.kev.length;
+        document.getElementById('kevTabBadge').textContent = dashboardData.kev.length;
+        renderKev(dashboardData.kev);
+    }).catch(e => {
+        console.error('KEV load failed:', e);
+        document.getElementById('kevTabBadge').textContent = '!';
+    });
+
+    const ghsaPromise = fetch('/api/ghsa').then(r => r.json()).then(data => {
+        dashboardData.ghsa = data.advisories || [];
+        document.getElementById('statGhsa').textContent = dashboardData.ghsa.length;
+        document.getElementById('ghsaTabBadge').textContent = dashboardData.ghsa.length;
+        renderGhsa(dashboardData.ghsa);
+    }).catch(e => {
+        console.error('GHSA load failed:', e);
+        document.getElementById('ghsaTabBadge').textContent = '!';
+    });
+
+    const intelPromise = fetch('/api/intel').then(r => r.json()).then(data => {
+        const allIntel = data.intel || [];
         const aiCategories = ['ai_security', 'ai_news'];
         dashboardData.secIntel = allIntel.filter(i => !aiCategories.includes(i.category));
         dashboardData.aiIntel = allIntel.filter(i => aiCategories.includes(i.category));
 
-        // Update stats
-        const s = dashboardData.stats || {};
-        document.getElementById('statTotal').textContent = s.total_cves || 0;
-        document.getElementById('statCritical').textContent = s.critical_cves || 0;
-        document.getElementById('statHigh').textContent = s.high_cves || 0;
-        document.getElementById('statKev').textContent = s.kev_count || 0;
-        document.getElementById('statGhsa').textContent = s.ghsa_count || 0;
-        document.getElementById('statIntel').textContent = dashboardData.secIntel.length || 0;
-        document.getElementById('statAi').textContent = dashboardData.aiIntel.length || 0;
+        document.getElementById('statIntel').textContent = dashboardData.secIntel.length;
+        document.getElementById('statAi').textContent = dashboardData.aiIntel.length;
+        document.getElementById('intelTabBadge').textContent = dashboardData.secIntel.length;
+        document.getElementById('aiTabBadge').textContent = dashboardData.aiIntel.length;
 
-        // Update badges
-        document.getElementById('cveTabBadge').textContent = s.total_cves || 0;
-        document.getElementById('kevTabBadge').textContent = s.kev_count || 0;
-        document.getElementById('ghsaTabBadge').textContent = s.ghsa_count || 0;
-        document.getElementById('intelTabBadge').textContent = dashboardData.secIntel.length || 0;
-        document.getElementById('aiTabBadge').textContent = dashboardData.aiIntel.length || 0;
-
-        // Render panels
-        renderCves(dashboardData.cves || []);
-        renderKev(dashboardData.kev || []);
-        renderGhsa(dashboardData.ghsa || []);
         populateSourceFilter('intelSourceFilter', dashboardData.secIntel);
         renderIntel(dashboardData.secIntel);
         populateSourceFilter('aiSourceFilter', dashboardData.aiIntel);
         renderAi(dashboardData.aiIntel);
+    }).catch(e => {
+        console.error('Intel load failed:', e);
+        document.getElementById('intelTabBadge').textContent = '!';
+        document.getElementById('aiTabBadge').textContent = '!';
+    });
 
-        // Update timestamp
-        const ts = dashboardData.last_updated;
-        document.getElementById('lastUpdated').textContent = ts
-            ? `Updated ${new Date(ts).toLocaleTimeString()}`
-            : '—';
-
-        document.getElementById('statusDot').style.background = 'var(--accent-green)';
-    } catch (err) {
-        console.error('Dashboard load failed:', err);
-        document.getElementById('statusDot').style.background = 'var(--accent-red)';
-        document.getElementById('lastUpdated').textContent = 'Feed error';
-    } finally {
-        overlay.classList.remove('active');
+    // Wait for all to settle, then update status
+    Promise.allSettled([cvePromise, kevPromise, ghsaPromise, intelPromise]).then(results => {
+        const anyFailed = results.some(r => r.status === 'rejected');
+        document.getElementById('statusDot').style.background = anyFailed ? 'var(--accent-orange)' : 'var(--accent-green)';
+        document.getElementById('lastUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
         refreshBtn.classList.remove('loading');
-    }
+    });
 }
 
 // ─── Filter Event Listeners ───
