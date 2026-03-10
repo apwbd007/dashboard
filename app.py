@@ -5,11 +5,13 @@ Team 6 Research | Application Security Dashboard
 """
 
 import json
+import os
 import time
 import sqlite3
 import hashlib
 import logging
 import threading
+import urllib3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -27,6 +29,16 @@ CACHE_TTL = 900  # 15 min default cache
 FEED_FETCH_TIMEOUT = 20
 LOG = logging.getLogger("secintel")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+# ── Corporate Proxy ──
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+PROXY_URL = ""  # e.g. "http://proxy.corp.net:8080"
+PROXIES = {
+    "http": PROXY_URL,
+    "https": PROXY_URL,
+}
+os.environ["HTTP_PROXY"] = PROXY_URL
+os.environ["HTTPS_PROXY"] = PROXY_URL
 
 app = Flask(__name__)
 
@@ -219,7 +231,7 @@ def fetch_epss_scores(cve_ids: list):
         batch = cve_ids[i : i + batch_size]
         url = f"https://api.first.org/data/v1/epss?cve={','.join(batch)}"
         try:
-            resp = requests.get(url, timeout=FEED_FETCH_TIMEOUT)
+            resp = requests.get(url, timeout=FEED_FETCH_TIMEOUT, proxies=PROXIES, verify=False)
             resp.raise_for_status()
             data = resp.json()
             for item in data.get("data", []):
@@ -243,7 +255,7 @@ def fetch_cisa_kev():
 
     url = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
     try:
-        resp = requests.get(url, timeout=FEED_FETCH_TIMEOUT)
+        resp = requests.get(url, timeout=FEED_FETCH_TIMEOUT, proxies=PROXIES, verify=False)
         resp.raise_for_status()
         data = resp.json()
     except Exception as e:
@@ -271,8 +283,8 @@ def fetch_cisa_kev():
     return results
 
 
-def fetch_rss_feed(url: str, source: str, category: str, limit: int = 50, days_back: int = 20):
-    """Generic RSS/Atom feed fetcher, filtered to last N days"""
+def fetch_rss_feed(url: str, source: str, category: str, limit: int = 50):
+    """Generic RSS/Atom feed fetcher, newest first"""
     cache_key = f"rss_{hashlib.md5(url.encode()).hexdigest()}"
     cached = cache_get(cache_key)
     if cached:
@@ -284,30 +296,35 @@ def fetch_rss_feed(url: str, source: str, category: str, limit: int = 50, days_b
         LOG.error(f"RSS fetch failed ({source}): {e}")
         return []
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
     results = []
     for entry in feed.entries[:limit]:
         published = ""
+
+        # Try feedparser's pre-parsed time structs first (most reliable)
+        parsed_time = None
         if hasattr(entry, "published_parsed") and entry.published_parsed:
-            try:
-                pub_dt = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
-                if pub_dt < cutoff:
-                    continue
-                published = pub_dt.isoformat()
-            except Exception:
-                published = getattr(entry, "published", "")
+            parsed_time = entry.published_parsed
         elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
+            parsed_time = entry.updated_parsed
+
+        if parsed_time:
             try:
-                pub_dt = datetime(*entry.updated_parsed[:6], tzinfo=timezone.utc)
-                if pub_dt < cutoff:
-                    continue
+                pub_dt = datetime(*parsed_time[:6], tzinfo=timezone.utc)
                 published = pub_dt.isoformat()
             except Exception:
-                published = getattr(entry, "updated", "")
-        elif hasattr(entry, "published"):
-            published = entry.published
-        elif hasattr(entry, "updated"):
-            published = entry.updated
+                pass
+
+        # Fallback: try to parse raw date string into ISO
+        if not published:
+            raw_date = getattr(entry, "published", "") or getattr(entry, "updated", "")
+            if raw_date:
+                try:
+                    from email.utils import parsedate_to_datetime
+                    pub_dt = parsedate_to_datetime(raw_date).astimezone(timezone.utc)
+                    published = pub_dt.isoformat()
+                except Exception:
+                    # Last resort: keep raw string, will sort to bottom
+                    published = raw_date
 
         results.append({
             "id": hashlib.md5((entry.get("link", "") + entry.get("title", "")).encode()).hexdigest(),
@@ -339,7 +356,8 @@ def fetch_github_advisories(ecosystem: str = "", severity: str = "", limit: int 
 
     try:
         resp = requests.get(url, params=params, timeout=FEED_FETCH_TIMEOUT,
-                           headers={"Accept": "application/vnd.github+json"})
+                           headers={"Accept": "application/vnd.github+json"},
+                           proxies=PROXIES, verify=False)
         resp.raise_for_status()
         data = resp.json()
     except Exception as e:
