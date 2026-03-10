@@ -12,6 +12,7 @@ import logging
 import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 import feedparser
@@ -270,8 +271,8 @@ def fetch_cisa_kev():
     return results
 
 
-def fetch_rss_feed(url: str, source: str, category: str, limit: int = 20):
-    """Generic RSS/Atom feed fetcher"""
+def fetch_rss_feed(url: str, source: str, category: str, limit: int = 50, days_back: int = 20):
+    """Generic RSS/Atom feed fetcher, filtered to last N days"""
     cache_key = f"rss_{hashlib.md5(url.encode()).hexdigest()}"
     cached = cache_get(cache_key)
     if cached:
@@ -283,10 +284,27 @@ def fetch_rss_feed(url: str, source: str, category: str, limit: int = 20):
         LOG.error(f"RSS fetch failed ({source}): {e}")
         return []
 
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
     results = []
     for entry in feed.entries[:limit]:
         published = ""
-        if hasattr(entry, "published"):
+        if hasattr(entry, "published_parsed") and entry.published_parsed:
+            try:
+                pub_dt = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
+                if pub_dt < cutoff:
+                    continue
+                published = pub_dt.isoformat()
+            except Exception:
+                published = getattr(entry, "published", "")
+        elif hasattr(entry, "updated_parsed") and entry.updated_parsed:
+            try:
+                pub_dt = datetime(*entry.updated_parsed[:6], tzinfo=timezone.utc)
+                if pub_dt < cutoff:
+                    continue
+                published = pub_dt.isoformat()
+            except Exception:
+                published = getattr(entry, "updated", "")
+        elif hasattr(entry, "published"):
             published = entry.published
         elif hasattr(entry, "updated"):
             published = entry.updated
@@ -562,33 +580,64 @@ RSS_FEEDS = [
 # ---------------------------------------------------------------------------
 
 def aggregate_all():
-    """Run all fetchers and return structured data"""
-    LOG.info("Starting full aggregation...")
+    """Run all fetchers in parallel and return structured data"""
+    LOG.info("Starting full aggregation (parallel)...")
+    start_time = time.time()
 
-    # 1. CVEs from NVD
-    cves = fetch_nvd_cves(days_back=7, results_per_page=40)
-
-    # 2. Enrich with EPSS
+    # 1. NVD first — EPSS depends on the CVE IDs
+    cves = fetch_nvd_cves(days_back=7, results_per_page=2000)
     cve_ids = [c["cve_id"] for c in cves if c.get("cve_id")]
-    epss = fetch_epss_scores(cve_ids)
+
+    # 2. Everything else in parallel
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        epss_future = pool.submit(fetch_epss_scores, cve_ids)
+        kev_future = pool.submit(fetch_cisa_kev)
+        ghsa_future = pool.submit(fetch_github_advisories, "", "", 25)
+
+        rss_futures = {
+            pool.submit(fetch_rss_feed, f["url"], f["source"], f["category"]): f["source"]
+            for f in RSS_FEEDS
+        }
+
+        # Collect structured API results
+        try:
+            epss = epss_future.result(timeout=30)
+        except Exception as e:
+            LOG.error(f"EPSS parallel fetch failed: {e}")
+            epss = {}
+
+        try:
+            kev = kev_future.result(timeout=30)
+        except Exception as e:
+            LOG.error(f"KEV parallel fetch failed: {e}")
+            kev = []
+
+        try:
+            ghsa = ghsa_future.result(timeout=30)
+        except Exception as e:
+            LOG.error(f"GHSA parallel fetch failed: {e}")
+            ghsa = []
+
+        # Collect RSS results
+        rss_items = []
+        for future in as_completed(rss_futures, timeout=60):
+            source = rss_futures[future]
+            try:
+                rss_items.extend(future.result())
+            except Exception as e:
+                LOG.error(f"RSS feed failed ({source}): {e}")
+
+    # 3. Enrich CVEs with EPSS
     for c in cves:
         if c["cve_id"] in epss:
             c["epss_score"] = epss[c["cve_id"]]["epss"]
             c["epss_percentile"] = epss[c["cve_id"]]["percentile"]
 
-    # 3. CISA KEV
-    kev = fetch_cisa_kev()
+    # 4. Sort RSS newest first
+    rss_items.sort(key=lambda x: x.get("published", ""), reverse=True)
 
-    # 4. GitHub Advisories
-    ghsa = fetch_github_advisories(limit=25)
-
-    # 5. RSS feeds
-    rss_items = []
-    for feed_cfg in RSS_FEEDS:
-        items = fetch_rss_feed(feed_cfg["url"], feed_cfg["source"], feed_cfg["category"])
-        rss_items.extend(items)
-
-    LOG.info(f"Aggregation complete: {len(cves)} CVEs, {len(kev)} KEV, {len(ghsa)} GHSA, {len(rss_items)} RSS")
+    elapsed = round(time.time() - start_time, 1)
+    LOG.info(f"Aggregation complete in {elapsed}s: {len(cves)} CVEs, {len(kev)} KEV, {len(ghsa)} GHSA, {len(rss_items)} RSS")
 
     return {
         "cves": cves,
@@ -670,6 +719,14 @@ def api_health():
 
 if __name__ == "__main__":
     init_db()
+
+    # Pre-warm cache so first user gets instant response
+    LOG.info("Pre-warming cache (parallel fetch)...")
+    try:
+        aggregate_all()
+        LOG.info("Cache warm — ready to serve")
+    except Exception as e:
+        LOG.error(f"Pre-warm failed (will retry on first request): {e}")
 
     # Background scheduler for periodic refresh
     scheduler = BackgroundScheduler()
